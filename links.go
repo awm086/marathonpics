@@ -6,13 +6,13 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-  "os"
-  "strings"
+	"os"
+	"strings"
 )
 
 // Extract makes an HTTP GET request to the specified URL, parses
 // the response as HTML, and returns the links in the HTML document.
-func extract(url string) ([]string, error) {
+func extractImageUrls(url string) ([]string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -29,12 +29,14 @@ func extract(url string) ([]string, error) {
 
 	var links []string
 	visitNode := func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			for _, a := range n.Attr {
-				if a.Key != "href" {
+		if n.Type == html.ElementNode && n.Data == "img" {
+			for _, img := range n.Attr {
+				if img.Key != "src" {
 					continue
 				}
-				link, err := resp.Request.URL.Parse(a.Val)
+
+				link, err := resp.Request.URL.Parse(img.Val)
+				
 				if err != nil {
 					continue // ignore bad URLs
 				}
@@ -76,8 +78,8 @@ func getPage(url string) (int, error) {
 	defer out.Close()
 	bodyRes := response.Body
 	// copy to file
-	 n, err := io.Copy(out, bodyRes)
-	 if err != nil {
+	n, err := io.Copy(out, bodyRes)
+	if err != nil {
 		panic(err)
 	}
 	// read it and get it's lengths
@@ -88,7 +90,7 @@ func getPage(url string) (int, error) {
 		return 0, err
 	}
 
-	return len(body) , nil
+	return len(body), nil
 
 }
 
@@ -96,9 +98,9 @@ func worker(urlCh chan string, sizeCh chan string, byteCh chan []string, id int)
 	for {
 		url := <-urlCh
 		length, err := getPage(url)
-		links, _ := extract(url)
+		links, _ := extractImageUrls(url)
 		if err == nil {
-			sizeCh <- fmt.Sprintf("%s has length %d with worker %d \n " , url, length, id)
+			sizeCh <- fmt.Sprintf("%s has length %d with worker %d \n ", url, length, id)
 			byteCh <- links
 		} else {
 			sizeCh <- fmt.Sprintf("error getting %s: %s", url, err)
@@ -106,47 +108,82 @@ func worker(urlCh chan string, sizeCh chan string, byteCh chan []string, id int)
 	}
 }
 
-func Filter(s []string, fn func(string, string) bool , keep string) []string {
-    var p []string // == nil
-    for _, v := range s {
-        if fn(v, keep) {
-            p = append(p, v)
-        }
-    }
-    return p
+func Filter(s []string, fn func(string, string) bool, keep string) []string {
+	var p []string // == nil
+	for _, v := range s {
+		if fn(v, keep) {
+			p = append(p, v)
+		}
+	}
+	return p
 }
 
+func downloadFromUrl(url string) {
+	tokens := strings.Split(url, "/")
+	fileName :=  tokens[len(tokens)-1]
+	fileName += ".jpg"
+	fmt.Println("Downloading", url, "to", fileName)
+
+	// TODO: check file existence first with io.IsExist
+	output, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println("Error while creating", fileName, "-", err)
+		return
+	}
+	defer output.Close()
+
+	response, err := http.Get(url)
+	if err != nil {
+		fmt.Println("Error while downloading", url, "-", err)
+		return
+	}
+	defer response.Body.Close()
+
+	n, err := io.Copy(output, response.Body)
+	if err != nil {
+		fmt.Println("Error while downloading", url, "-", err)
+		return
+	}
+
+	fmt.Println(n, "bytes downloaded.")
+}
 
 func main() {
 
-	urls := []string{"http://www.google.com", "http://www.yahoo.com", "http://www.google.com"}
-	keep := "google";
+	//downloadFromUrl("http://offsiteimages-02.marathonfoto.com/MFT2015-02/84/778984/1001/0005.jpg%3Fpreset=TRUE")
+	url := "http://www.marathonfoto.com/Proofs?PIN=G5C410&LastName=ALMUSTAFA"
 	
-	urls_filterd := Filter(urls, strings.Contains, keep)
-	fmt.Println(urls_filterd)
+	imgUrls, _ := extractImageUrls(url);
+	fmt.Println(len(imgUrls));
 
-	urlCh := make(chan string)
-	sizeCh := make(chan string)
-	byteCh := make(chan []string)
-	// get page
+	// urls := []string{"http://www.google.com", "http://www.yahoo.com", "http://www.google.com"}
+	 keep := "offsiteimages"
 
-	// extract urls
+	 urls_filterd := Filter(imgUrls, strings.Contains, keep);
+	 fmt.Println(urls_filterd);
 
-	// dispatch workers to download files
+	// urlCh := make(chan string)
+	// sizeCh := make(chan string)
+	// byteCh := make(chan []string)
+	// // get page
 
-	for i := 0; i < 10; i++ {
-		go worker(urlCh, sizeCh, byteCh, i)
+	// // extract urls
 
-	}
-	for _, url := range(urls) {
-		urlCh <- url
-	}
-	for i:=0; i<len(urls); i++ {
-		fmt.Printf("%s\n", <-sizeCh)
-	}
+	// // dispatch workers to download files
 
-	for i:=0; i<len(urls); i++ {
-		//fmt.Printf("%s\n", <-byteCh)
-		
-	}
+	// for i := 0; i < 10; i++ {
+	// 	go worker(urlCh, sizeCh, byteCh, i)
+
+	// }
+	 for _, url := range urls_filterd {
+	 	go downloadFromUrl(url);
+	 }
+	// for i := 0; i < len(urls); i++ {
+	// 	fmt.Printf("%s\n", <-sizeCh)
+	// }
+
+	// for i := 0; i < len(urls); i++ {
+	// 	//fmt.Printf("%s\n", <-byteCh)
+
+	// }
 }
