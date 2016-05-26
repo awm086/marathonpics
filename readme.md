@@ -1,4 +1,4 @@
-h1. Marathon Photos
+ Marathon Photos
 -----------------------
 
 bin/marathonpics [URL to your pics] and all will be downloaded to "pics" dir.
