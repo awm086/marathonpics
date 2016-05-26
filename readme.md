@@ -3,7 +3,7 @@
 
 bin/marathonpics [URL to your pics] and all will be downloaded to "pics" dir.
 
-h2. Example:
+## Example:
 - checkout the code.
 - go install marathonpics
 - bin/marathonpics http://www.marathonfoto.com/Proofs?PIN=96A012&lastName=DYE
