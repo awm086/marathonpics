@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"golang.org/x/net/html"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
-	"log"
-    "net/url"
 )
 
 // Extract makes an HTTP GET request to the specified URL, parses
@@ -50,7 +50,6 @@ func extractImageUrls(url string) ([]string, error) {
 	return links, nil
 }
 
-
 func forEachNode(n *html.Node, pre, post func(n *html.Node)) {
 	if pre != nil {
 		pre(n)
@@ -64,7 +63,7 @@ func forEachNode(n *html.Node, pre, post func(n *html.Node)) {
 }
 
 func Filter(s []string, fn func(string, string) bool, keep string) []string {
-	var p []string 
+	var p []string
 	for _, v := range s {
 		if fn(v, keep) {
 			p = append(p, v)
@@ -74,8 +73,8 @@ func Filter(s []string, fn func(string, string) bool, keep string) []string {
 }
 
 func downloadFromUrl(url string, wg *sync.WaitGroup, fileName string) {
-	defer wg.Done();
-	
+	defer wg.Done()
+
 	// TODO: check file existence first with io.IsExist
 	output, err := os.Create(fileName)
 	if err != nil {
@@ -102,23 +101,22 @@ func downloadFromUrl(url string, wg *sync.WaitGroup, fileName string) {
 
 func main() {
 
-	urlarg := os.Args[1];
-	fmt.Println(urlarg);
+	urlarg := os.Args[1]
+	fmt.Println(urlarg)
 	// Valid url?
 	_, err1 := url.Parse(urlarg)
-    if err1 != nil {
-    	fmt.Println("Need to provide Valid URL in the argument")
-       	log.Fatal(err1)
-    }
+	if err1 != nil {
+		fmt.Println("Need to provide Valid URL in the argument")
+		log.Fatal(err1)
+	}
 
+	dir := "pics/"
 
-	dir := "pics/";
-
-	err := os.MkdirAll(dir,0711)
+	err := os.MkdirAll(dir, 0711)
 
 	if err != nil {
 		fmt.Println("Error while creating", dir, "-", err)
-		os.Exit(1);
+		os.Exit(1)
 	}
 
 	imgUrls, _ := extractImageUrls(urlarg)
@@ -128,21 +126,21 @@ func main() {
 	keep := "offsiteimages"
 
 	urls_filterd := Filter(imgUrls, strings.Contains, keep)
-	
+
 	var wg sync.WaitGroup
 	for _, url := range urls_filterd {
 		url = strings.Replace(url, "preset=t", "preset=TRUE", -1)
-		// Construct filenames. 
+		// Construct filenames.
 		tokens := strings.Split(url, "/")
-		fileName := tokens[len(tokens)-2] + tokens[len(tokens)-1];
-		fileName =  strings.Replace(fileName, "?preset=TRUE", "", -1);
+		fileName := tokens[len(tokens)-2] + tokens[len(tokens)-1]
+		fileName = strings.Replace(fileName, "?preset=TRUE", "", -1)
 
 		// Increment syncgroup
 		wg.Add(1)
-		log.Println(url);
+		log.Println(url)
 		// Dispatch routines.
-		path := dir + fileName;
-		go downloadFromUrl(url, &wg, path);
+		path := dir + fileName
+		go downloadFromUrl(url, &wg, path)
 
 	}
 
