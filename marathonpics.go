@@ -102,7 +102,6 @@ func downloadFromUrl(url string, wg *sync.WaitGroup, fileName string) {
 
 func main() {
 
-	//url := "http://www.marathonfoto.com/Proofs?PIN=G5C410&LastName=ALMUSTAFA"
 	urlarg := os.Args[1];
 	fmt.Println(urlarg);
 	// Valid url?
